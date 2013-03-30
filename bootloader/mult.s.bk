@@ -1,0 +1,117 @@
+@ ARRAY MULTIPLY PROGRAM
+@ This program multiplies same number elements of two arrays of half words
+@ called MULTIPLICANDS and MULTIPLIERS and puts the word result in
+@ the same numbered element of a word array named PRODUCTS.
+@ Uses registers R1-4, R6-R8
+@ Douglas V. Hall Fall 2007
+@ Modified by : Dung Le
+.equ GPDR2, 0x40E00014
+.equ GRER2, 0x40E00038
+.equ GEDR2, 0x40E00050
+.equ GPSR2, 0x40E00020
+.equ GPCR2, 0x40E0002C
+.equ NUM, 4
+
+
+.global _start
+_start:
+b reset_blink
+	ldr pc,reset_handler
+    ldr pc,undefined_handler
+    ldr pc,swi_handler
+    ldr pc,prefetch_handler
+    ldr pc,data_handler
+    ldr pc,unused_handler
+    ldr pc,irq_handler
+    ldr pc,fiq_handler
+reset_handler:      .word reset_m
+undefined_handler:  .word hang
+swi_handler:        .word hang
+prefetch_handler:   .word hang
+data_handler:       .word hang
+unused_handler:     .word hang
+irq_handler:        .word irq
+fiq_handler:        .word hang
+
+reset_m:
+    @ldr r0,=0x10004
+    @mov r0, #0xff
+    @mov r1, #0x0
+    @str r0, [r1]
+
+    ldr r0,=0xa0010004
+    mov r1,#0x0
+        
+    ldmia r0!,{r2,r3,r4,r5,r6,r7,r8,r9}
+    stmia r1!,{r2,r3,r4,r5,r6,r7,r8,r9}
+    ldmia r0!,{r2,r3,r4,r5,r6,r7,r8,r9}
+    stmia r1!,{r2,r3,r4,r5,r6,r7,r8,r9}
+    @mov R0, PC
+	
+	@mov PC, #0x880000
+	
+
+    ;@ (PSR_IRQ_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
+    mov r0,#0xD2
+    msr cpsr_c,r0
+    mov sp,#0x10000
+
+    ;@ (PSR_FIQ_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
+    mov r0,#0xD1
+    msr cpsr_c,r0
+    mov sp,#0x4000
+
+    ;@ (PSR_SVC_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
+    mov r0,#0xD3
+    msr cpsr_c,r0
+    mov sp,#0x8000000
+
+    ;@ SVC MODE, IRQ ENABLED, FIQ DIS
+    ;@mov r0,#0x53
+    ;@msr cpsr_c, r0
+    
+    b LOOP
+	
+reset_blink:
+@ make it output
+	
+
+	LDR R1, =GPDR2		@ get GPDR2 address to R1
+	LDR	R6, [R1]	@ read GPDR2 current value
+	ORR	R6, R6, #0x08	@ set bit 3 to program GPIO <67> as output
+	STR	R6, [R1]	@ write word back to GPDR0
+
+	NOP
+
+	LDR R3, =GPSR2		@ get GPCR0 address to R3
+	LDR R4, =0x08		@ load word to turn off LED
+	STR R4, [R3]		@ write R4 to GPCR0
+	
+	LDR R3, =GPCR2		@ get GPCR0 address to R3
+	LDR R4, =0x08		@ load word to turn off LED
+	STR R4, [R3]		@ write R4 to GPCR0
+
+	@mov R0, PC
+	
+	@mov PC, #0x800000
+	
+	b reset_m
+	
+	
+		
+
+LOOP:
+	B LOOP
+	
+hang: b hang
+
+irq:
+b irq
+    push {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,lr}
+    @bl c_irq_handler
+    pop  {r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,lr}
+    subs pc,lr,#4
+    
+.data
+
+.end

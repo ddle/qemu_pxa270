@@ -1,0 +1,10 @@
+/* memmap */
+MEMORY
+{
+    rom  : ORIGIN = 0xa0010000, LENGTH = 32K
+}
+
+SECTIONS
+{
+   .text : { *(.text*) } > rom
+}
