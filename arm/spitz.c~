@@ -266,7 +266,6 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
     /* Handle the additional keys */
     if ((spitz_keycode >> 4) == SPITZ_KEY_SENSE_NUM) {
         qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80));
-        printf("key: %x\n",keycode);
         return;
     }
 
@@ -276,7 +275,6 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
         s->keyrow[spitz_keycode >> 4] |= 1 << (spitz_keycode & 0xf);
 
     spitz_keyboard_sense_update(s);
-    //printf("keydown\n");
 }
 
 #define SHIFT	(1 << 7)
@@ -305,7 +303,6 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
         break;
     case 0x1d:	/* Control */
         s->modifiers |= 4;
-        //printf("control pressed\n");
         break;
     case 0x9d:
         s->modifiers &= ~4;
@@ -780,9 +777,6 @@ static void spitz_out_switch(void *opaque, int line, int level)
     case 6:
         spitz_adc_temp_on(opaque, line, level);
         break;
-    case 7:  	// hack 1: hook up "RED LED" to gpio 67
-		printf("RED LED %s.\n", level ? "on" : "off");
-        break;
     }
 }
 
@@ -805,9 +799,7 @@ static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
                 DeviceState *scp0, DeviceState *scp1)
 {
     qemu_irq *outsignals = qemu_allocate_irqs(spitz_out_switch, cpu, 8);
- 	// hack 1: hook up "RED LED" to gpio 67
- 	qdev_connect_gpio_out(cpu->gpio, 67, outsignals[7]);
- 
+
     qdev_connect_gpio_out(scp0, SPITZ_SCP_CHRG_ON, outsignals[0]);
     qdev_connect_gpio_out(scp0, SPITZ_SCP_JK_B, outsignals[1]);
     qdev_connect_gpio_out(scp0, SPITZ_SCP_LED_GREEN, outsignals[2]);
@@ -906,7 +898,7 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
 
     memory_region_init_ram(rom, "spitz.rom", SPITZ_ROM);
     vmstate_register_ram_global(rom);
-    //memory_region_set_readonly(rom, true);
+    memory_region_set_readonly(rom, true);
     memory_region_add_subregion(address_space_mem, 0, rom);
 
     /* Setup peripherals */
@@ -946,7 +938,6 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
 static void spitz_init(QEMUMachineInitArgs *args)
 {
     spitz_common_init(args, spitz, 0x2c9);
-	printf("patch v1: LED on GPIO 67\n");
 }
 
 static void borzoi_init(QEMUMachineInitArgs *args)
@@ -957,7 +948,6 @@ static void borzoi_init(QEMUMachineInitArgs *args)
 static void akita_init(QEMUMachineInitArgs *args)
 {
     spitz_common_init(args, akita, 0x2e8);
-    //zaurus_printf("Orange LED");
 }
 
 static void terrier_init(QEMUMachineInitArgs *args)
