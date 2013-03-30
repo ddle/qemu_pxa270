@@ -1,4 +1,0 @@
-arm-linux-gnueabi-gcc -mcpu=arm926ej-s -c -o test.o test.c
-arm-linux-gnueabi-gcc -mcpu=arm926ej-s -c -o vectors.o vectors.s
-arm-linux-gnueabi-gcc -T memmap test.o vectors.o -o test
-arm-linux-gnueabi-objcopy -O binary test test.bin
