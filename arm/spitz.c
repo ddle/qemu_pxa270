@@ -39,7 +39,7 @@
 /*	int led0;*/
 /*	int button0;*/
 /*} SimpleSpitzBoardInfo;*/
-//static SimpleSpitzBoardInfo ssb = {0,0}; /* off state */
+//static SimpleSpitzBoardInfo ssb = {0,0};  off state 
 
 static SSBInfo ssb = {0,0}; /* off state */
 
