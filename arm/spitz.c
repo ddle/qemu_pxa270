@@ -28,9 +28,38 @@
 #include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "qmp-commands.h"
+
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
+
+/*typedef struct*/
+/*{*/
+/*	int led0;*/
+/*	int button0;*/
+/*} SimpleSpitzBoardInfo;*/
+//static SimpleSpitzBoardInfo ssb = {0,0}; /* off state */
+
+static SSBInfo ssb = {0,0}; /* off state */
+
+SSBInfo * qmp_query_SSBInfo(Error **errp)
+{
+	SSBInfo *binfo;	
+	binfo = g_malloc0(sizeof(*binfo));
+	
+	binfo->led0 = ssb.led0;
+	binfo->button0 = ssb.button0;
+	ssb.button0 = 0; /* reset for next read. Assuming this polling happens frequently*/ 
+
+	return binfo;
+}
+
+
+void qmp_hello_world(Error **errp)
+{
+    printf("Hello world!\n");
+}
 
 /* Spitz Flash */
 #define FLASH_BASE		0x0c000000
@@ -266,7 +295,10 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
     /* Handle the additional keys */
     if ((spitz_keycode >> 4) == SPITZ_KEY_SENSE_NUM) {
         qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80));
-        printf("key: %x\n",keycode);
+        //printf("key: %x\n",keycode);
+        /* hack 2: button response on sendkey command */
+        if (keycode == 0x52)
+        	ssb.button0 = 1;
         return;
     }
 
@@ -782,6 +814,7 @@ static void spitz_out_switch(void *opaque, int line, int level)
         break;
     case 7:  	// hack 1: hook up "RED LED" to gpio 67
 		printf("RED LED %s.\n", level ? "on" : "off");
+		ssb.led0 = level;
         break;
     }
 }
@@ -946,7 +979,7 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
 static void spitz_init(QEMUMachineInitArgs *args)
 {
     spitz_common_init(args, spitz, 0x2c9);
-	printf("patch v1: LED on GPIO 67\n");
+	printf("patch v1: LED GPIO67, Button GPIO13 \n");
 }
 
 static void borzoi_init(QEMUMachineInitArgs *args)
@@ -1145,4 +1178,8 @@ static void spitz_register_types(void)
     type_register_static(&sl_nand_info);
 }
 
+
 type_init(spitz_register_types)
+
+
+
