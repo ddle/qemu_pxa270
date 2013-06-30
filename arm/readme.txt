@@ -3,15 +3,17 @@ These are the modified sources from recent qemu (at the time I am using: Mar-201
 BUILD QEMU
 ----------------------------------
 
-To build this under Windows (a binary is provided in case you give up)
-1. take a look at this first:
+To build this under Windows (a binary is provided in case you give up):
+
+0. download the archive in qemu_archive folder, unpack it, then put spitz.c (overwrite) into qemu/hw/arm, the rest in qemu/
+you may use them with the most recent qemu from https://github.com/qemu/qemu, however their locations will be different. Also it is not guaranteed that these patches will compatible anymore (may fail to compile)
+1. take a look at this:
 http://hpoussineau.free.fr/qemu/buildenv/HOWTO-_compile_Qemu_under_Windows_for_i386_and_x86_64_emulation_targets.pdf
 and
 http://wiki.qemu.org/Hosts/W32
 2. get MinGW, then open MinGW terminal
 3. Follow instruction in step 1 to get additional libraries, be patient, this step can be very daunting. General method is download the tar packet, unpack, ./configure, make then make install. Additional libraries used in my case: gettext, glib, libiconv, pixman, SDL, zlib
 4. Assuming step 3 is done, follow instruction in step 1 to compile qemu. I use
-(get the qemu archive first)
 	cd qemu
 	./configure --target-list="arm-softmmu" --prefix=/F/qemu_build
 	make
@@ -25,9 +27,12 @@ For Linux (ubuntu) build:
 # apt-get build-dep qemu
 
 This will install build dependencies for current version of qemu in debian so this might not be precisely what you need. However it should be quite simple to install new build dependencies or disable build options in configure to match what the qemu source you just downloaded. Configure and build a qemu arm system.
+
+proceed with step 0 from windows build above then
+$ cd qemu
 $ ./configure  --target-list=arm-softmmu
 $ make
-use --prefix option as windows example above if you want to relocate the binaries
+use --prefix option as windows example above if you want to relocate the binaries (during make install)
 
 RECENT CHANGES
 ----------------------------------
