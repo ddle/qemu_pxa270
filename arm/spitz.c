@@ -1,6 +1,14 @@
 /*
- * PXA270-based Clamshell PDA platforms.
+ * Simple Spitz's Qemu, v1.0
+ * Dung Le, 2013
+ * 
+ * This patch adds connections on two specific GPIO pins: GPIO73 - Button and GPIO67 - LED
+ * Also, adds custom qmp command "ssbinfo" so we can query their pin 's status from monitor
  *
+ * Original header below
+ *********************************************************************
+ * PXA270-based Clamshell PDA platforms.
+ * 
  * Copyright (c) 2006 Openedhand Ltd.
  * Written by Andrzej Zaborowski <balrog@zabor.org>
  *
@@ -28,21 +36,17 @@
 #include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+// patch
 #include "qmp-commands.h"
 
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
 
-/*typedef struct*/
-/*{*/
-/*	int led0;*/
-/*	int button0;*/
-/*} SimpleSpitzBoardInfo;*/
-//static SimpleSpitzBoardInfo ssb = {0,0};  off state 
-
+// patch
 static SSBInfo ssb = {0,0}; /* off state */
-
+// qmp command callback
+// ssb.button0 set/reset via key press/release event handler
 SSBInfo * qmp_query_SSBInfo(Error **errp)
 {
 	SSBInfo *binfo;	
@@ -50,12 +54,9 @@ SSBInfo * qmp_query_SSBInfo(Error **errp)
 	
 	binfo->led0 = ssb.led0;
 	binfo->button0 = ssb.button0;
-	ssb.button0 = 0; /* reset for next read. Assuming this polling happens frequently*/ 
-
 	return binfo;
 }
-
-
+// patch : simple "hello world" qmp command test
 void qmp_hello_world(Error **errp)
 {
     printf("Hello world!\n");
@@ -217,7 +218,8 @@ static const int spitz_gpio_key_strobe[SPITZ_KEY_STROBE_NUM] = {
     88, 23, 24, 25, 26, 27, 52, 103, 107, 108, 114
 };
 
-/* Eighth additional row maps the special keys */
+// patch: add new key 0x53
+/* 8th row maps the special keys */
 static int spitz_keymap[SPITZ_KEY_SENSE_NUM + 1][SPITZ_KEY_STROBE_NUM] = {
     { 0x1d, 0x02, 0x04, 0x06, 0x07, 0x08, 0x0a, 0x0b, 0x0e, 0x3f, 0x40 },
     {  -1 , 0x03, 0x05, 0x13, 0x15, 0x09, 0x17, 0x18, 0x19, 0x41, 0x42 },
@@ -226,7 +228,7 @@ static int spitz_keymap[SPITZ_KEY_SENSE_NUM + 1][SPITZ_KEY_STROBE_NUM] = {
     { 0x3b, 0x1e, 0x20, 0x2e, 0x30, 0x31, 0x34,  -1 , 0x1c, 0x2a,  -1  },
     { 0x44, 0x2c, 0x2d, 0x0c, 0x39, 0x33,  -1 , 0x48,  -1 ,  -1 , 0x38 },
     { 0x37, 0x3d,  -1 , 0x45, 0x57, 0x58, 0x4b, 0x50, 0x4d,  -1 ,  -1  },
-    { 0x52, 0x43, 0x01, 0x47, 0x49,  -1 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  },
+    { 0x52, 0x43, 0x01, 0x47, 0x49, 0x53,  -1 ,  -1 ,  -1 ,  -1 ,  -1  },
 };
 
 #define SPITZ_GPIO_AK_INT	13	/* Remote control */
@@ -234,17 +236,21 @@ static int spitz_keymap[SPITZ_KEY_SENSE_NUM + 1][SPITZ_KEY_STROBE_NUM] = {
 #define SPITZ_GPIO_ON_KEY	95	/* Power button */
 #define SPITZ_GPIO_SWA		97	/* Lid */
 #define SPITZ_GPIO_SWB		96	/* Tablet mode */
-
+// patch: add new gpio pin for button
+#define SPITZ_GPIO_MYBUTTON	73	/* our custom button (keycode 0x53) */
+#define BUTTON_NUM			6   /* has 6 keys recently */
+// patch
 /* The special buttons are mapped to unused keys */
-static const int spitz_gpiomap[5] = {
+static const int spitz_gpiomap[BUTTON_NUM] = {
     SPITZ_GPIO_AK_INT, SPITZ_GPIO_SYNC, SPITZ_GPIO_ON_KEY,
-    SPITZ_GPIO_SWA, SPITZ_GPIO_SWB,
+    SPITZ_GPIO_SWA, SPITZ_GPIO_SWB, SPITZ_GPIO_MYBUTTON,
 };
 
 typedef struct {
     SysBusDevice busdev;
     qemu_irq sense[SPITZ_KEY_SENSE_NUM];
-    qemu_irq gpiomap[5];
+	// patch: 6
+    qemu_irq gpiomap[BUTTON_NUM];
     int keymap[0x80];
     uint16_t keyrow[SPITZ_KEY_SENSE_NUM];
     uint16_t strobe_state;
@@ -271,7 +277,7 @@ static void spitz_keyboard_sense_update(SpitzKeyboardState *s)
         } else if (s->sense_state & (1 << i))
             qemu_irq_lower(s->sense[i]);
     }
-
+	
     s->sense_state = sense;
 }
 
@@ -294,11 +300,7 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
 
     /* Handle the additional keys */
     if ((spitz_keycode >> 4) == SPITZ_KEY_SENSE_NUM) {
-        qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80));
-        //printf("key: %x\n",keycode);
-        /* hack 2: button response on sendkey command */
-        if (keycode == 0x52)
-        	ssb.button0 = 1;
+        qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80));       
         return;
     }
 
@@ -307,8 +309,7 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
     else
         s->keyrow[spitz_keycode >> 4] |= 1 << (spitz_keycode & 0xf);
 
-    spitz_keyboard_sense_update(s);
-    //printf("keydown\n");
+    spitz_keyboard_sense_update(s);    
 }
 
 #define SHIFT	(1 << 7)
@@ -322,7 +323,16 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
     SpitzKeyboardState *s = opaque;
     uint16_t code;
     int mapcode;
+	printf("keyhandler: %x\n",keycode);
     switch (keycode) {
+	// patch : our button responses on sendkey command during key press/release event
+	case 0x53:	// button press
+        ssb.button0 = 1;
+        break;
+	case 0xd3:	// button release
+	    ssb.button0 = 0;
+        break;
+		
     case 0x2a:	/* Left Shift */
         s->modifiers |= 1;
         break;
@@ -336,8 +346,7 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
         s->modifiers &= ~2;
         break;
     case 0x1d:	/* Control */
-        s->modifiers |= 4;
-        //printf("control pressed\n");
+        s->modifiers |= 4;        
         break;
     case 0x9d:
         s->modifiers &= ~4;
@@ -498,14 +507,15 @@ static void spitz_keyboard_register(PXA2xxState *cpu)
 
     for (i = 0; i < SPITZ_KEY_SENSE_NUM; i ++)
         qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(cpu->gpio, spitz_gpio_key_sense[i]));
-
-    for (i = 0; i < 5; i ++)
+		
+	// patch : 6 keys
+    for (i = 0; i < BUTTON_NUM; i ++)
         s->gpiomap[i] = qdev_get_gpio_in(cpu->gpio, spitz_gpiomap[i]);
 
     if (!graphic_rotate)
         s->gpiomap[4] = qemu_irq_invert(s->gpiomap[4]);
 
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < BUTTON_NUM; i++)
         qemu_set_irq(s->gpiomap[i], 0);
 
     for (i = 0; i < SPITZ_KEY_STROBE_NUM; i ++)
@@ -812,7 +822,7 @@ static void spitz_out_switch(void *opaque, int line, int level)
     case 6:
         spitz_adc_temp_on(opaque, line, level);
         break;
-    case 7:  	// hack 1: hook up "RED LED" to gpio 67
+    case 7:  	// patch: detect "RED LED" on gpio 67
 		printf("RED LED %s.\n", level ? "on" : "off");
 		ssb.led0 = level;
         break;
@@ -838,7 +848,7 @@ static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
                 DeviceState *scp0, DeviceState *scp1)
 {
     qemu_irq *outsignals = qemu_allocate_irqs(spitz_out_switch, cpu, 8);
- 	// hack 1: hook up "RED LED" to gpio 67
+ 	// patch: hook up "RED LED" to gpio 67
  	qdev_connect_gpio_out(cpu->gpio, 67, outsignals[7]);
  
     qdev_connect_gpio_out(scp0, SPITZ_SCP_CHRG_ON, outsignals[0]);
@@ -939,6 +949,10 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
 
     memory_region_init_ram(rom, "spitz.rom", SPITZ_ROM);
     vmstate_register_ram_global(rom);
+	// patch: we dont really want "rom" to be read-only
+	// my reason for this is that "rom" is mapped at 0x0; we cannot set up irq vector in bootcode if it is read-only
+	// I could be wrong but uncomment line below ( so "rom" will behave as ram) makes my bootloader works (irq works as expected)
+	// TODO: alternative method could be making change in the loader.c code?
     //memory_region_set_readonly(rom, true);
     memory_region_add_subregion(address_space_mem, 0, rom);
 
@@ -979,7 +993,8 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
 static void spitz_init(QEMUMachineInitArgs *args)
 {
     spitz_common_init(args, spitz, 0x2c9);
-	printf("patch v1: LED GPIO67, Button GPIO13 \n");
+	printf("Simple Spitz's Qemu, version 1.0\n");
+	printf("LED GPIO67, Button GPIO13 \n");
 }
 
 static void borzoi_init(QEMUMachineInitArgs *args)
@@ -990,7 +1005,6 @@ static void borzoi_init(QEMUMachineInitArgs *args)
 static void akita_init(QEMUMachineInitArgs *args)
 {
     spitz_common_init(args, akita, 0x2e8);
-    //zaurus_printf("Orange LED");
 }
 
 static void terrier_init(QEMUMachineInitArgs *args)

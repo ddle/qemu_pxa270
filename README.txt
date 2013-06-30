@@ -3,5 +3,5 @@ Copyright Dung Le 2013
 ----
 - "arm" folder contains modified sources from the original qemu's
 - bootloader: bootloader source, basicly set up interrupt vectors, execute a "blink" then loop forever
-- SpitzEmulator: windows binary is provided (nice! very painful to build this under windows) and Python frontend (v2.7 tested)
+- SpitzEmulator: windows binary of qemu (win7 tested) + Python frontend (v2.7 tested). For Linux (ubuntu in my case), please follow build instruction in arm folder
 - qemu_archive: archive of qemu version that was built for this project. Qemu is currently under heavily development (May 2013)

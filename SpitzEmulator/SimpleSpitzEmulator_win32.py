@@ -1,5 +1,7 @@
 #
-# A Simple Spitz (Xscale pxa270) Emulator Graphic Front End, Python 2.7
+# A Simple Spitz (Xscale pxa270) Emulator Graphic Front End (Python 2.7)
+# Dung Le 2013, ddle@pdx.edu
+# Version: 1.0
 #
 # This script works with a patched qemu-system-arm that enables basic external
 # parts (leds, switches) on "spitz" machine and provides info querying via qemu's monitor.
@@ -7,18 +9,28 @@
 # a telnet client on localhost connection with the emulating machine. In addition, pressing 
 # switch event is simulated by the "sendkey" command. 
 # See qemu/docs/writing-qmp-commands.txt for more info about monitoring commands.
-# In current patch: Key's hex code: 0x52, switch: GPIO13, Led: GPIO67
 #
-# Dung Le 2013, ddle@pdx.edu
+# In current patch: switch: GPIO73, Led: GPIO67
 #
-from Tkinter import *
+# Interface:
+# Button: send key-press event 
+# Halt: stop the machine
+# Resume: resume the machine
+# restart: kill and restart emulator
+# reset: currently not supported since qemu does not have clean reset yet
+#
 import threading, subprocess, time, telnetlib
+
+try:
+	from Tkinter import *
+except ImportError:
+	from tkinter import *  # python 3.x
 try:
 	from Queue import Queue, Empty
 except ImportError:
 	from queue import Queue, Empty  # python 3.x
 	
-# global variables to be shared among thread, 
+# global variables to be shared among threads, 
 t = None
 tn_client = None
 proc = None
@@ -32,7 +44,7 @@ hmp_cmd_queue = Queue()
 
 HOST = "localhost"
 PORT = "4321"
-key = "0x52"
+key = "0x53"
 
 # must have "ipv4" (!) on windows env 
 QEMU_CMD = "qemu-system-arm.exe -M spitz -kernel kernel.img -nographic -gdb tcp::1234,ipv4 -monitor telnet:" + HOST + ":" + PORT + ",server,nowait,ipv4"
@@ -135,7 +147,7 @@ def start_telnet_client():
 			#tn.interact()
 			read = tn.read_until("(qemu)",timeout)		
 			print "telnet connected"
-			tn.write("stop") # we 've let the machine's boot code run, can stop now to relax cpu 
+			#tn.write("stop") # we 've let the machine's boot code run, can stop now to relax cpu 
 			#print read		
 			return tn
 		except Exception,e:			
