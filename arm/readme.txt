@@ -1,5 +1,6 @@
-These are the modified sources from recent qemu (at the time I am using: Mar-2013). I should have doing a "diff" instead but whatever...( I am new to git ). Also I put the archive of this qemu version in the qemu_archive folder since there are lot of developments recently on qemu. 
+These are the modified sources from recent qemu (at the time I am using: Mar-2013). I should have done a "diff" instead but whatever...( I am new to git ). Also I put the archive of this qemu version in the qemu_archive folder since there are lot of developments recently on qemu. 
 
+BUILD QEMU
 ----------------------------------
 
 To build this under Windows (a binary is provided in case you give up)
@@ -10,15 +11,13 @@ http://wiki.qemu.org/Hosts/W32
 2. get MinGW, then open MinGW terminal
 3. Follow instruction in step 1 to get additional libraries, be patient, this step can be very daunting. General method is download the tar packet, unpack, ./configure, make then make install. Additional libraries used in my case: gettext, glib, libiconv, pixman, SDL, zlib
 4. Assuming step 3 is done, follow instruction in step 1 to compile qemu. I use
-(unpack the qemu archive first)
+(get the qemu archive first)
 	cd qemu
 	./configure --target-list="arm-softmmu" --prefix=/F/qemu_build
 	make
 	make install
 Note: if some dependencies aren't met, make will fail. Repeat step 3 to resolve. 
 5. The executable is qemu-system-arm.exe in "/F/qemu_build" folder ( if you use --prefix option )
-
-----------------------------------
 
 For Linux (ubuntu) build:
 
@@ -28,15 +27,15 @@ For Linux (ubuntu) build:
 This will install build dependencies for current version of qemu in debian so this might not be precisely what you need. However it should be quite simple to install new build dependencies or disable build options in configure to match what the qemu source you just downloaded. Configure and build a qemu arm system.
 $ ./configure  --target-list=arm-softmmu
 $ make
-
 use --prefix option as windows example above if you want to relocate the binaries
 
+RECENT CHANGES
 ----------------------------------
-Okay, This section keeps track changes through out each version
+Okay, This section keeps track changes throughout versions
 
 v1.0:
 	- add button emulation
-		First, I found the original spitz has a GPIO connected keypad. In spitz.c, ignore the first 7 rows of spitz_keymap, the 8th row connect to the following "special" buttons:
+		First, I found the original spitz has a GPIO connected keypad. In spitz.c, ignore the first 7 rows of spitz_keymap, the 8th row specifies to the following "special" buttons:
 		
 		--- 
 		#define SPITZ_GPIO_AK_INT	13	/* Remote control */
@@ -44,6 +43,7 @@ v1.0:
 		#define SPITZ_GPIO_ON_KEY	95	/* Power button */
 		#define SPITZ_GPIO_SWA		97	/* Lid */
 		#define SPITZ_GPIO_SWB		96	/* Tablet mode */
+		
 		// patch: add new gpio pin for button
 		#define SPITZ_GPIO_MYBUTTON	73	/* our custom button (keycode 0x53) */
 		
@@ -84,10 +84,11 @@ v1.0:
 		---
 		
 		That "seems" to be all it take for hooking up a new button to our machine.
-		How can we simulate button action on the emulator? Qemu supports the "sendkey" command (via monitor) which can  trigger a series of event on the specific pin. In our case, the above 5 special buttons are mapped in the 8th row of spitz_keymap matrix:
+		How can we simulate button action on the emulator? Qemu supports the "sendkey" command (via monitor) which can  trigger a series of event on the specific pin. In our case, the above 6 special buttons are mapped in the 8th row of spitz_keymap matrix:
 		{ 0x52, 0x43, 0x01, 0x47, 0x49,  0x53 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  }
-		I decided to take over pin 73 for my purpose, and give a corresponding key code of 0x53
-		There're a lot of magic in what happening during sendkey, but at the end of the chain, it appears that spitz_keyboard_handler() happens first when key is pressed. This queues the key into a FIFO which is then periodically checked by a timer callback, spitz_keyboard_tick(), which then calls spitz_keyboard_keydown(). There is also a subsequence callback to spitz_keyboard_handler() due to key-release event (keycode in this event will be 0xd3 = 0x53 + 0x80).. Our button event is recorded as follow:
+		I decided to take over pin 73 for my purpose, and give a corresponding key code of 0x53.
+		There're a lot of magic in what happening during sendkey, but at the end of the chain, it appears that spitz_keyboard_handler() happens first at "keypress" event. This queues the key into a FIFO which is then periodically checked by a timer callback, spitz_keyboard_tick(), which then calls spitz_keyboard_keydown(). There is also a subsequent callback to spitz_keyboard_handler() due to keyrelease event (keycode in this event will be 0xd3 = 0x53 + 0x80).
+		Our button event is recorded as follow:
 		
 		---
 		static void spitz_keyboard_handler(void *opaque, int keycode)
@@ -107,6 +108,7 @@ v1.0:
 			...
 		}
 		---
+		Note that the ssb struct is part of qmp command implementation, please see https://github.com/qemu/qemu/blob/master/docs/writing-qmp-commands.txt
 		
 	- add LED emulation
 		I again found original spitz emulates two LEDs (green and orange). Adding another LED should be done in very similar way. In spitz.c :
@@ -153,8 +155,49 @@ v1.0:
 		}
 		---	
 	
-	- add qmp "SSBinfo" command, see https://github.com/qemu/qemu/blob/master/docs/writing-qmp-commands.txt
-	- spitz has rom at 0x0 but seems not has been remapped (to higher addr, so that ram can go to 0x0). This prevents copying irq vectors to 0x0 at Power On Reset. A hack is commenting out : "memory_region_set_readonly(rom, true);", and make it behave as ram.
+	- add qmp "ssbinfo" command, see https://github.com/qemu/qemu/blob/master/docs/writing-qmp-commands.txt
+		When "ssbinfo" cmd is submitted, the following functions will get called:
+		
+		---hmp.c
+		void hmp_info_SSBInfo(Monitor *mon,const QDict *qdict)
+		{
+			SSBInfo *binfo;
+			Error *errp = NULL;
+
+			binfo = qmp_query_SSBInfo(&errp);
+			if (error_is_set(&errp)) {
+				monitor_printf(mon, "Could not query simple spitz board information\n");
+				error_free(errp);
+				return;
+			}
+
+			monitor_printf(mon, "led0:%d\n", (int)binfo->led0);
+			monitor_printf(mon, "button0:%d\n", (int)binfo->button0);
+
+			qapi_free_SSBInfo(binfo); 
+		}
+		---
+		
+		which invokes the following in spitz.c
+		
+		---spitz.c
+		// patch
+		static SSBInfo ssb = {0,0}; /* off state */
+		
+		// note: ssb.button0 set/reset via key press/release event handler
+		SSBInfo * qmp_query_SSBInfo(Error **errp)
+		{
+			SSBInfo *binfo;	
+			binfo = g_malloc0(sizeof(*binfo));
+			
+			binfo->led0 = ssb.led0;
+			binfo->button0 = ssb.button0;
+			return binfo;
+		}
+		---
+		
+	- spitz has rom at 0x0 but seems not has been remapped (to higher addr, so that ram can go to 0x0). This prevents copying irq vectors to 0x0 at Power On Reset. A simple hack is commenting out : "memory_region_set_readonly(rom, true);", and make it behave as ram.
+	
 	- boottraping process is as follow:
 		Relevant codes:
 
