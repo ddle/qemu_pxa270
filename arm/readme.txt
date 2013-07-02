@@ -1,7 +1,6 @@
 	These are the modified sources from recent qemu (at the time I am using: Mar-2013). 
 I should have done a "diff" instead but whatever...( I am new to git ). Also I put the
-archive of this qemu version in the qemu_archive folder since there are lot of developments 
-recently on qemu. 
+archive of this qemu version in the qemu_archive folder since there are lot of developments recently on qemu. 
 
 	This project is to assist our ECE371/372 Microprocessor and Interface lab, which heavily
 based on the Zeus board (PXA270 ARM architecture, same as Spitz). Based on Spitz, I add the 
