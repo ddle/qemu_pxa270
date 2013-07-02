@@ -173,8 +173,8 @@ v1.0:
 		please see https://github.com/qemu/qemu/blob/master/docs/writing-qmp-commands.txt
 		
 	+ add LED emulation
-			I again found original spitz emulates two LEDs (green and orange). Adding another LED 
-		should be done in very similar way. In spitz.c :		
+			I again found original spitz emulates two LEDs (green and orange). Adding 
+		another LED should be done in very similar way. In spitz.c :		
 		---
 		static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
 						DeviceState *scp0, DeviceState *scp1)
@@ -196,7 +196,8 @@ v1.0:
 			}
 		}
 		---		
-		Note that spitz_out_switch() is the callback that was specified in spitz_scoop_gpio_setup().
+		Note that spitz_out_switch() is the callback that was specified in
+		spitz_scoop_gpio_setup().
 		
 		In general, I think what makes these patches work are the following:		
 		---
@@ -217,9 +218,10 @@ v1.0:
 		}
 		---	
 	
-	+ add qmp "ssbinfo" command, see https://github.com/qemu/qemu/blob/master/docs/writing-qmp-commands.txt
-		When "ssbinfo" cmd is submitted, the following functions will get called:
-		
+	+ add qmp "ssbinfo" command, 
+		(ee https://github.com/qemu/qemu/blob/master/docs/writing-qmp-commands.txt)
+	
+		When "ssbinfo" cmd is submitted, the following functions will get called:		
 		---hmp.c
 		void hmp_info_SSBInfo(Monitor *mon,const QDict *qdict)
 		{
@@ -258,7 +260,8 @@ v1.0:
 		
 	+ spitz has rom at 0x0 but seems not has been remapped (to higher addr, so that ram 
 	can go to 0x0). This prevents copying irq vectors to 0x0 at Power On Reset. A simple 
-	hack is commenting out : "memory_region_set_readonly(rom, true);", and make it behave as ram.
+	hack is commenting out : "memory_region_set_readonly(rom, true);", and make it behave
+	as ram.
 	
 	+ boottraping process is as follow:
 		Relevant codes:
