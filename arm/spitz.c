@@ -1,8 +1,11 @@
 /*
- * Simple Spitz's Qemu, v1.0
+ * Simple Spitz's Qemu, v1.1
  * Dung Le, 2013
  * 
- * This patch adds connections on two specific GPIO pins: GPIO73 - Button and GPIO67 - LED
+ * This patch adds:
+ * - on two specific GPIO pins: GPIO73 - Button and GPIO67 - LED
+ * - external UART (base addr: 0x1000_0000) with output interrupt on GPIO 10
+ * 
  * Also, adds custom qmp command "ssbinfo" so we can query their pin 's status from monitor
  *
  * Original header below
@@ -38,10 +41,16 @@
 #include "exec/address-spaces.h"
 // patch
 #include "qmp-commands.h"
-
+#include "hw/serial.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
+
+/* serial ports */
+#define MAX_EXTERNAL_SERIAL_PORTS     4
+#define EXTERNAL_UART1_BASE           0x10000000
+#define EXTERNAL_UART_GPIO_IRQ        10
+//CharDriverState *external_serial_hds[MAX_EXTERNAL_SERIAL_PORTS];
 
 // patch
 static SSBInfo ssb = {0,0}; /* off state */
@@ -54,6 +63,7 @@ SSBInfo * qmp_query_SSBInfo(Error **errp)
 	
 	binfo->led0 = ssb.led0;
 	binfo->button0 = ssb.button0;
+	ssb.button0 = 0; // reset for next read. Assuming this polling happens frequently 
 	return binfo;
 }
 // patch : simple "hello world" qmp command test
@@ -300,7 +310,9 @@ static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
 
     /* Handle the additional keys */
     if ((spitz_keycode >> 4) == SPITZ_KEY_SENSE_NUM) {
-        qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80));       
+        qemu_set_irq(s->gpiomap[spitz_keycode & 0xf], (keycode < 0x80));   
+		if (keycode == 0x53)
+        	ssb.button0 = 1;
         return;
     }
 
@@ -325,6 +337,7 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
     int mapcode;
 	printf("keyhandler: %x\n",keycode);
     switch (keycode) {
+	/*
 	// patch : our button responses on sendkey command during key press/release event
 	case 0x53:	// button press
         ssb.button0 = 1;
@@ -332,7 +345,7 @@ static void spitz_keyboard_handler(void *opaque, int keycode)
 	case 0xd3:	// button release
 	    ssb.button0 = 0;
         break;
-		
+	*/	
     case 0x2a:	/* Left Shift */
         s->modifiers |= 1;
         break;
@@ -953,6 +966,7 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
 	// my reason for this is that "rom" is mapped at 0x0; we cannot set up irq vector in bootcode if it is read-only
 	// I could be wrong but uncomment line below ( so "rom" will behave as ram) makes my bootloader works (irq works as expected)
 	// TODO: alternative method could be making change in the loader.c code?
+	
     //memory_region_set_readonly(rom, true);
     memory_region_add_subregion(address_space_mem, 0, rom);
 
@@ -960,7 +974,16 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
     spitz_keyboard_register(mpu);
 
     spitz_ssp_attach(mpu);
-
+	
+	// patch: add external UART
+	if (serial_hds[3]) 
+	{			
+        serial_mm_init(address_space_mem, 
+					   EXTERNAL_UART1_BASE, 0,
+					   qdev_get_gpio_in(mpu->gpio, EXTERNAL_UART_GPIO_IRQ), 115200, 
+					   serial_hds[3], DEVICE_NATIVE_ENDIAN);
+    }
+	
     scp0 = sysbus_create_simple("scoop", 0x10800000, NULL);
     if (model != akita) {
         scp1 = sysbus_create_simple("scoop", 0x08800040, NULL);
@@ -993,8 +1016,11 @@ static void spitz_common_init(QEMUMachineInitArgs *args,
 static void spitz_init(QEMUMachineInitArgs *args)
 {
     spitz_common_init(args, spitz, 0x2c9);
-	printf("Simple Spitz's Qemu, version 1.0\n");
-	printf("LED GPIO67, Button GPIO13 \n");
+	printf("Simple Spitz's Qemu, version 1.1\n");
+	printf("LED GPIO 67, Button GPIO 73, external UART (base addr: 0x1000_0000) irq -> GPIO 10 \n\n");
+	printf("Event log:\n");
+	printf("---\n");
+	
 }
 
 static void borzoi_init(QEMUMachineInitArgs *args)

@@ -1,25 +1,30 @@
 #
-# A Simple Spitz (Xscale pxa270) Emulator Graphic Front End (Python 2.7)
-# Dung Le 2013, ddle@pdx.edu
-# Version: 1.0
+# A Simple Spitz (Xscale pxa270) Emulator Graphic Front End, version 1.1
+# Copyright Dung Le 2013, ddle@pdx.edu
 #
-# This script works with a patched qemu-system-arm that enables basic external
-# parts (leds, switches) on "spitz" machine and provides info querying via qemu's monitor.
-# Led and switch actions are monitored using the custom hmp command "info ssbinfo", via 
-# a telnet client on localhost connection with the emulating machine. In addition, pressing 
-# switch event is simulated by the "sendkey" command. 
+# This script is the GUI for our customized qemu-system-arm emulator. It emulates "spitz" machine
+# (PDA board based on PXA270). The project is hosted at https://github.com/ddle/qemu_pxa270
+# 
+# Currently the emulator adds:
+# - button on GPIO 73, LED on GPIO 67
+# - external UART (base addr: 0x1000_0000) with output interrupt on GPIO 10
+# - info querying via qemu's monitor.
+#
+# Our script establishes two telnet connections with qemu: one with its monitor and one with its 
+# virtual serial output.
+# Led and switch actions are monitored using the custom hmp command "info ssbinfo", via qemu's monitor.
+# In addition, switch action is simulated by the "sendkey" command. 
 # See qemu/docs/writing-qmp-commands.txt for more info about monitoring commands.
 #
-# In current patch: switch: GPIO73, Led: GPIO67
-#
 # Interface:
-# Button: send key-press event 
-# Halt: stop the machine
-# Resume: resume the machine
-# restart: kill and restart emulator
-# reset: currently not supported since qemu does not have clean reset yet
+# - Button: send button press event 
+# - Halt: stop the machine
+# - Resume: resume the machine
+# - restart: kill and restart emulator
+# - reset: currently NOT supported since qemu does not have clean reset yet
+# - serial output display
 #
-import threading, subprocess, time, telnetlib
+import threading, subprocess, time, telnetlib, socket
 
 try:
 	from Tkinter import *
@@ -43,12 +48,13 @@ result_queue = Queue()
 hmp_cmd_queue = Queue() 
 
 HOST = "localhost"
-PORT = "4321"
+MONITOR_PORT = "4321"
+SERIAL_PORT = "6789"
 key = "0x53"
 
 # must have "ipv4" (!) on windows env 
-QEMU_CMD = "qemu-system-arm.exe -M spitz -kernel kernel.img -nographic -gdb tcp::1234,ipv4 -monitor telnet:" + HOST + ":" + PORT + ",server,nowait,ipv4"
-
+QEMU_CMD = "qemu-system-arm.exe -M spitz -kernel kernel.img -serial stdio -serial null -serial null -serial telnet:" + HOST + ":" + SERIAL_PORT + ",server,nowait,ipv4 -nographic -gdb tcp::1234,ipv4 -monitor telnet:" + HOST + ":" + MONITOR_PORT + ",server,nowait,ipv4"
+#QEMU_CMD = "qemu-system-arm.exe -M spitz -kernel kernel.img -serial stdio -serial null -serial null -serial COM27 -gdb tcp::1234,ipv4 -monitor telnet:" + HOST + ":" + PORT + ",server,nowait,ipv4"
 # callback routines
 def submit_to_tkinter(callable, *args, **kwargs):
 	request_queue.put((callable, args, kwargs))
@@ -83,11 +89,11 @@ def tk_thread():
 		else:
 			retval = callable(*args, **kwargs)
 			result_queue.put(retval)
-		t.after(300, timertick)
+		t.after(100, timertick)
 
 	t = Tk()
 	t.title("Simple Spitz Emulator 1.0")
-	t.configure(width=280, height=150)
+	t.configure(width=280, height=230)
 	b0 = Button(text='Reset', name='button0', width=7, command = lambda:button_cmd_callback("\n")) #system_reset is unclean so currently not used
 	b0.place(x=5, y=5)
 	
@@ -108,6 +114,15 @@ def tk_thread():
 	l1 = Button(text='led1',height=2, width=5, name='led1', state=DISABLED)
 	l1.place(x=200, y=60)
 	
+	scrollbar = Scrollbar()
+	scrollbar.place(x=250,y=120,height=80)
+
+	text = Text(name='text0',wrap=WORD, yscrollcommand=scrollbar.set)
+	text.place(x=10,y=120,height=80, width=235)
+
+	# attach text to scrollbar
+	scrollbar.config(command=text.yview)
+	
 	timertick()
 	t.mainloop()	
 	stop = True
@@ -123,8 +138,22 @@ def led_off(whichled):
 	t.children[whichled].configure(bg="WHITE")	
 
 def box_msg(msg):
-	t.children["listbox0"].insert(END, msg)
+	log = t.children["text0"]
+	log['state'] = 'normal'
+	if log.index('end-1c')!='1.0':
+		log.insert('end', '')
+	log.insert('end', msg)
+	log['state'] = 'disabled'
 	
+def clear_box_msg():
+	log = t.children["text0"]
+	numlines = int(log.index('end - 1 line').split('.')[0])
+	log['state'] = 'normal'
+	while numlines > 0 :
+		log.delete(1.0, 2.0)
+		numlines = numlines - 1
+	log['state'] = 'disabled'
+
 # run shell command (child process)
 def Run(command):
 	try:
@@ -136,17 +165,17 @@ def Run(command):
 		
 # telnet client establishes connection with our emulator, this is our query channel 
 #(led,button states) via hmp commands
-def start_telnet_client():
+def start_telnet_client(host, port):
 	timeout = 10
 	counter = 0
 	interval = 1
 	tn = None
 	while (counter < timeout) and not done:
 		try:
-			tn = telnetlib.Telnet(HOST,PORT)			
+			tn = telnetlib.Telnet(host,port)			
 			#tn.interact()
 			read = tn.read_until("(qemu)",timeout)		
-			print "telnet connected"
+			#print "telnet connected"
 			#tn.write("stop") # we 've let the machine's boot code run, can stop now to relax cpu 
 			#print read		
 			return tn
@@ -174,8 +203,7 @@ def process_qemu_output(l):
 		led_state = 1
 	else:
 		pass
-		#submit_to_tkinter(box_msg, l)
-		
+			
 ############################# main ################################
 thread1 = threading.Thread(target=tk_thread) # tk graphic thread
 thread1.start()
@@ -184,32 +212,43 @@ thread1.start()
 while not done:
 	print "start emulator"
 	stop = False
-	
+
 	proc = Run(QEMU_CMD) # start qemu
 	if proc.poll() is not None:
 		print "emulator: failed"
 		break
 	time.sleep(1) # wait for qemu process
-	tn_client = start_telnet_client()
+	tn_client = start_telnet_client(HOST, MONITOR_PORT)
+	tn_serial_client = start_telnet_client(HOST, SERIAL_PORT)
 
-	if tn_client is None:
+	if (tn_client is None) or (tn_serial_client is None) :
 		print "telnet: failed"
 		break
-		
+	print "ok"	
 	while not stop:
-		try:
+		try: # process monitor querying
 			tn_client.write("info ssbinfo\n") # query board info
 			time.sleep(0.1)
-			line = tn_client.read_very_eager() # read all available w/o blocking
+			line = tn_client.read_very_eager() # read all available w/o blocking			
 			process_qemu_output(line)		
 			cmd = hmp_cmd_queue.get_nowait() # none blocking, The Queue class implements all the required locking semantics
-			tn_client.write(cmd) # execute cmd if any
+			tn_client.write(cmd) # execute cmd if any			
+			
 		except Empty:
 			pass	
 		except Exception,e:
-			print e.args		
+			print e.args	
+			
 		time.sleep(0.1)
 		
+		try: # process serial output if any
+			new_serial_msg = tn_serial_client.read_very_eager()			
+			submit_to_tkinter(box_msg, new_serial_msg)
+		except Empty:
+			pass	
+		except Exception,e:
+			print e.args	
+			
 	tn_client.write("q\n") # send exit code
 	time.sleep(1) # wait for qemu process exiting
 	if proc.poll() is None:	# force exit		
@@ -218,7 +257,7 @@ while not done:
 		#proc.terminate()
 		# kill process under windows:
 		subprocess.Popen("taskkill /F /T /PID %i"%proc.pid , shell=True)
-			
+	submit_to_tkinter(clear_box_msg)		
 thread1.join()	
 print "done"
 
