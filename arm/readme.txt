@@ -1,7 +1,8 @@
 	These are the modified sources from recent qemu (at the time I am using: Mar-2013). 
-I should have done a "diff" instead but whatever...( I am new to git ). 
-Also I put the archive of this qemu version in the qemu_archive folder since
-there are lot of developments recently on qemu. 
+I should have done a "diff" instead but whatever...( I am new to git ). Also I put the
+archive of this qemu version in the qemu_archive folder since there are lot of developments 
+recently on qemu. 
+
 	This project is to assist our ECE371/372 Microprocessor and Interface lab, which heavily
 based on the Zeus board (PXA270 ARM architecture, same as Spitz). Based on Spitz, I add the 
 necessary external components that are currently used in our projects, including:
@@ -9,6 +10,7 @@ necessary external components that are currently used in our projects, including
 	- BUTTON (done,tested)
 	- UART (done, not fully tested)
 	- I2C (under development)
+	
 	In concurrent with qemu task, I also implement a python script as GUI front-end on top of 
 qemu. Please see SimpleSpitzEmulator.py
 
@@ -69,19 +71,17 @@ v1.1:
 	machine can has up to 3 UART units (allocated during runtime using -serial option). 
 	Since the maximum number of serial units can be allocated is 4, it seems to be a 
 	good idea to add the external UART as the 4th serial unit. Using a similar approach
-	in pxa27x.c:
-	
+	in pxa27x.c:	
 	---
 		// patch: add external UART
 		if (serial_hds[3]) 
 		{			
 			serial_mm_init(address_space_mem, 
-						   EXTERNAL_UART1_BASE, 0,
-						   qdev_get_gpio_in(mpu->gpio, EXTERNAL_UART_GPIO_IRQ), 115200, 
-						   serial_hds[3], DEVICE_NATIVE_ENDIAN);
+				EXTERNAL_UART1_BASE, 0,
+				qdev_get_gpio_in(mpu->gpio, EXTERNAL_UART_GPIO_IRQ), 115200, 
+				serial_hds[3], DEVICE_NATIVE_ENDIAN);
 		}
 	---
-
 		Note that instead of mpu->pic, I used mpu->gpio because interrupt is routed to 
 	to GPIO 10. Also this only happens if we allocate ALL four serial units. In the python
 	script, I put the 1st unit on stdio; 2nd and 3rd are void; finally our external unit 
@@ -93,8 +93,8 @@ v1.0:
 		
 	+ add button emulation
 			First, I found the original spitz has a GPIO connected keypad. In spitz.c, 
-		ignore the first 7 rows of spitz_keymap, the 8th row specifies to the following "special" buttons:
-		
+		ignore the first 7 rows of spitz_keymap, the 8th row specifies to the following
+		"special" buttons:		
 		--- 
 		#define SPITZ_GPIO_AK_INT	13	/* Remote control */
 		#define SPITZ_GPIO_SYNC		16	/* Sync button */
@@ -112,18 +112,15 @@ v1.0:
 		static const int spitz_gpiomap[BUTTON_NUM] = {
 			SPITZ_GPIO_AK_INT, SPITZ_GPIO_SYNC, SPITZ_GPIO_ON_KEY,
 			SPITZ_GPIO_SWA, SPITZ_GPIO_SWB, SPITZ_GPIO_MYBUTTON,
-		};
-		
+		};		
 		typedef struct {
 		...
 			// patch: 6
 			qemu_irq gpiomap[BUTTON_NUM];
 		...
 		} SpitzKeyboardState;
-		---
-		
-		Which later registered here:
-		
+		---		
+		Which later registered here:		
 		---
 		static void spitz_keyboard_register(PXA2xxState *cpu)
 		{
@@ -140,20 +137,21 @@ v1.0:
 			qemu_add_kbd_event_handler(spitz_keyboard_handler, s);
 		}
 		---
-		
 			That "seems" to be all it take for hooking up a new button to our machine.
 		How can we simulate button action on the emulator? Qemu supports the "sendkey" 
 		command (via monitor) which can  trigger a series of event on the specific pin. 
-			In our case, the above 6 special buttons are mapped in the 8th row of spitz_keymap matrix:
-		{ 0x52, 0x43, 0x01, 0x47, 0x49,  0x53 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  }. I decided to take 
-		over pin 73 for my purpose, and give a corresponding key code of 0x53.
-			There're a lot of magic in what happening during sendkey, but at the end of the chain, it 
-		appears that spitz_keyboard_handler() happens first at "keypress" event. This queues 
-		the key into a FIFO which is then periodically checked by a timer callback, spitz_keyboard_tick(),
-		which then calls spitz_keyboard_keydown(). There is also a subsequent callback to 
-		spitz_keyboard_handler() due to keyrelease event (keycode in this event will be 0xd3 = 0x53 + 0x80).
+			In our case, the above 6 special buttons are mapped in the 8th row of 
+		spitz_keymap matrix:
+		{ 0x52, 0x43, 0x01, 0x47, 0x49,  0x53 ,  -1 ,  -1 ,  -1 ,  -1 ,  -1  }. 
+		I decided to take over pin 73 for my purpose, and give a corresponding key 
+		code of 0x53.
+			There're a lot of magic in what happening during sendkey, but at the end 
+		of the chain, it appears that spitz_keyboard_handler() happens first at "keypress"
+		event. This queues the key into a FIFO which is then periodically checked by a
+		timer callback, spitz_keyboard_tick(), which then calls spitz_keyboard_keydown().
+		There is also a subsequent callback to spitz_keyboard_handler() due to keyrelease
+		event (keycode in this event will be 0xd3 = 0x53 + 0x80).
 			Our button event is recorded as follow:
-		
 		---
 		static void spitz_keyboard_keydown(SpitzKeyboardState *s, int keycode)
 		{
@@ -176,8 +174,7 @@ v1.0:
 		
 	+ add LED emulation
 			I again found original spitz emulates two LEDs (green and orange). Adding another LED 
-		should be done in very similar way. In spitz.c :
-		
+		should be done in very similar way. In spitz.c :		
 		---
 		static void spitz_scoop_gpio_setup(PXA2xxState *cpu,
 						DeviceState *scp0, DeviceState *scp1)
@@ -198,12 +195,10 @@ v1.0:
 				break;
 			}
 		}
-		---
-		
+		---		
 		Note that spitz_out_switch() is the callback that was specified in spitz_scoop_gpio_setup().
 		
-		In general, I think what makes these patches work are the following:
-		
+		In general, I think what makes these patches work are the following:		
 		---
 		// button case (input). This registers the pin then returns a qemu_irq instance which 
 		// can be chained to a callback
@@ -243,10 +238,8 @@ v1.0:
 
 			qapi_free_SSBInfo(binfo); 
 		}
-		---
-		
-		which invokes the following in spitz.c
-		
+		---		
+		which invokes the following in spitz.c		
 		---spitz.c
 		// patch
 		static SSBInfo ssb = {0,0}; /* off state */
@@ -321,14 +314,17 @@ v1.0:
 
 			loop: b loop
 			
-			This sets up irq vectors at 0x0, then goes into an endless loop. Boot process is done here. 
+			This sets up irq vectors at 0x0, then goes into an endless loop. Boot process 
+		is done here. 
 		So what's now? Well, Qemu supports gdb mode, which means we can use a gdb client
-		to connect to our machine, download code and debug. For example I use arm-elf-gdb with
-		target setting as GDBserver/localhost/1234 to connect to qemu, then I could load my 
-		binary to whenever ram location (via a load script) and run/debug. Or, just add bootldr.c 
-		to your custom project as start-up code, then instead of doing loop code, jump to your main function. 
-			For the first purpose, I made a python script that runs qemu in background, exchanges 
-		monitor messages (qmp query) then shows the result in its GUI. See SimpleSpitzEmulator.py
+		to connect to our machine, download code and debug. For example I use arm-elf-gdb
+		with target setting as GDBserver/localhost/1234 to connect to qemu, then I could
+		load my binary to whenever ram location (via a load script) and run/debug. Or, 
+		just add bootldr.c to your custom project as start-up code, then instead of doing
+		loop code, jump to your main function. 
+			For the first purpose, I made a python script that runs qemu in background, 
+		exchanges monitor messages (qmp query) then shows the result in its GUI. See 
+		SimpleSpitzEmulator.py
 
 
 	
