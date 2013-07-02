@@ -6,8 +6,10 @@
 @ ON ZUES BOARD TO DOUBLETALKER BOARD (RC 8660), WHENEVER BUTTON IS PRESSED.
 @ 
 @ NOTE: This version supports both emulator and lab board (ZEUS), use USE_EMULATOR
-@ constant below to switch b/w platform. The difference are mainly base address
-@ and register offsets of the UART controllers. 
+@ constant below to switch b/w platform. The difference are base address and register 
+@ offsets of the UART controllers. Another is the load address; in ldscript, use 
+@ 0xa100_0000 for emulator, and 0x0040_0000 for Zeus
+@ 
 @ Also the emulator uses a virtual terminal for monitoring serial output, 
 @ we could expect some minor differences when using real board with talker.
 @ 
