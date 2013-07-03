@@ -33,17 +33,28 @@
       <section id="main_content" class="inner">
         <p>Patched qemu-system-arm that enables basic external parts (leds, switches, external UART) on "spitz" machine, plus a simple python GUI interface.</p>
 
-<h2>
-<a name="copyright-dung-le-2013" class="anchor" href="#copyright-dung-le-2013"><span class="octicon octicon-link"></span></a>Copyright Dung Le 2013</h2>
+<p>Copyright Dung Le 2013</p>
+
+<p>Currently the GUI has:</p>
 
 <ul>
-<li>"arm" folder contains modified sources from the original qemu's</li>
-<li>bootloader: bootloader source, basicly set up interrupt vectors, execute a blink then loop forever</li>
-<li>SpitzEmulator: windows binary of qemu (win7 tested) + Python frontend (v2.7 tested). For Linux (ubuntu in my case), please follow build instruction in arm folder</li>
-<li>qemu_archive: archive of qemu version that was built for this project. 
-<img src="images/emulator.png" alt="emulator">
-</li>
-</ul>
+<li>button on GPIO 73, LED on GPIO 67</li>
+<li>external UART (base addr: 0x1000_0000) with output interrupt on GPIO 10</li>
+</ul><p>The script establishes two telnet connections with qemu: one with its monitor and one with its 
+virtual serial output.
+Led and switch actions are monitored using the custom hmp command "info ssbinfo".In addition, switch action is simulated by the "sendkey" command. </p>
+
+<p>Interface:</p>
+
+<ul>
+<li>Button: send button press event </li>
+<li>Halt: stop the machine</li>
+<li>Resume: resume the machine</li>
+<li>restart: kill and restart emulator</li>
+<li>reset: currently NOT supported since qemu does not have clean reset yet</li>
+<li>LED output display</li>
+<li>serial output display</li>
+</ul><p><img src="images/emulator.png" alt="emulator"></p>
       </section>
     </div>
 
