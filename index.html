@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Qemu pxa270 : qemu patch with python GUI interface (LED/Button/UART)" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Qemu pxa270</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/ddle/qemu_pxa270">View on GitHub</a>
+
+          <h1 id="project_title">Qemu pxa270</h1>
+          <h2 id="project_tagline">qemu patch with python GUI interface (LED/Button/UART)</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/ddle/qemu_pxa270/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/ddle/qemu_pxa270/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <p>Patched qemu-system-arm that enables basic external parts (leds, switches, external UART) on "spitz" machine, plus a simple python GUI interface.</p>
+
+<h2>
+<a name="copyright-dung-le-2013" class="anchor" href="#copyright-dung-le-2013"><span class="octicon octicon-link"></span></a>Copyright Dung Le 2013</h2>
+
+<ul>
+<li>"arm" folder contains modified sources from the original qemu's</li>
+<li>bootloader: bootloader source, basicly set up interrupt vectors, execute a blink then loop forever</li>
+<li>SpitzEmulator: windows binary of qemu (win7 tested) + Python frontend (v2.7 tested). For Linux (ubuntu in my case), please follow build instruction in arm folder</li>
+<li>qemu_archive: archive of qemu version that was built for this project. </li>
+</ul>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Qemu pxa270 maintained by <a href="https://github.com/ddle">ddle</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("ARM emulator, Qemu, GPIOs, UART");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+
+  </body>
+</html>
