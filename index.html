@@ -4,7 +4,7 @@
   <head>
     <meta charset='utf-8' />
     <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="Simple Spitz Emulator : QEMU patch with python GUI  (LED/Button/UART)" />
+    <meta name="description" content="Simple Spitz Emulator : PXA270 QEMU patch with python GUI  (LED/Button/UART)" />
 
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
@@ -19,7 +19,7 @@
           <a id="forkme_banner" href="https://github.com/ddle/qemu_pxa270">View on GitHub</a>
 
           <h1 id="project_title">Simple Spitz Emulator</h1>
-          <h2 id="project_tagline">QEMU patch with python GUI  (LED/Button/UART)</h2>
+          <h2 id="project_tagline">PXA270 QEMU patch with python GUI  (LED/Button/UART)</h2>
 
             <section id="downloads">
               <a class="zip_download_link" href="https://github.com/ddle/qemu_pxa270/zipball/master">Download this project as a .zip file</a>
@@ -31,7 +31,7 @@
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
-        <p>Patched qemu-system-arm that enables basic external parts (leds, switches, external UART) on "spitz" machine, plus a simple python GUI.</p>
+        <p>Patched qemu-system-arm that enables basic external parts (leds, switches, external UART) on "spitz" machine (pxa270), plus a simple python GUI.</p>
 
 <p>Copyright Dung Le 2013</p>
 
@@ -39,15 +39,15 @@
 
 <ul>
 <li>button on GPIO 73, LED on GPIO 67</li>
-<li>external UART (base addr: 0x1000_0000) with output interrupt on GPIO 10</li>
+<li>external UART (16550, base addr: 0x1000_0000) with output interrupt on GPIO 10</li>
 </ul><p>The script establishes two telnet connections with qemu: one with its monitor and one with its 
 virtual serial output.
-Led and switch actions are monitored using the custom hmp command "info ssbinfo".In addition, switch action is simulated by the "sendkey" command. </p>
+Led and switch status are monitored using the custom hmp command "info ssbinfo". In addition, switch action is simulated by the "sendkey" command. </p>
 
 <p>Interface:</p>
 
 <ul>
-<li>Button: send button press event </li>
+<li>Button: send button-press event </li>
 <li>Halt: stop the machine</li>
 <li>Resume: resume the machine</li>
 <li>restart: kill and restart emulator</li>
